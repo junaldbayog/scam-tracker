@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum NumberStatus {
+  ACTIVE
+  DISPUTED
+  DELISTED
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+}
+
+enum VoteType {
+  SCAM
+  SAFE
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model PhoneNumber {
+  id              String       @id @default(cuid())
+  e164            String       @unique
+  nationalFormat  String
+  prefix          String
+  telco           String?
+  scamVotes       Int          @default(0)
+  safeVotes       Int          @default(0)
+  reportCount     Int          @default(0)
+  status          NumberStatus @default(ACTIVE)
+  // Set when seeded from a public advisory (e.g. "NTC advisory 2026-03")
+  seedSource      String?
+  firstReportedAt DateTime     @default(now())
+  lastActivityAt  DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+
+  comments Comment[]
+  votes    Vote[]
+  disputes DisputeRequest[]
+
+  @@index([prefix])
+  @@index([telco])
+  @@index([lastActivityAt])
+  @@index([scamVotes])
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  nameFil  String?
+  blurb    String?
+  comments Comment[]
+}
+
+model Comment {
+  id            String        @id @default(cuid())
+  phoneNumberId String
+  phoneNumber   PhoneNumber   @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  body          String
+  displayName   String        @default("Anonymous")
+  ipHash        String
+  fingerprint   String
+  status        CommentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([phoneNumberId, status])
+  @@index([status, createdAt])
+  @@index([fingerprint])
+}
+
+model Vote {
+  id            String      @id @default(cuid())
+  phoneNumberId String
+  phoneNumber   PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  type          VoteType
+  ipHash        String
+  fingerprint   String
+  createdAt     DateTime    @default(now())
+
+  @@unique([phoneNumberId, fingerprint])
+  @@index([ipHash, createdAt])
+}
+
+model DisputeRequest {
+  id            String        @id @default(cuid())
+  phoneNumberId String
+  phoneNumber   PhoneNumber   @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  claimantName  String
+  email         String
+  explanation   String
+  status        DisputeStatus @default(OPEN)
+  adminNote     String?
+  createdAt     DateTime      @default(now())
+  resolvedAt    DateTime?
+
+  @@index([status])
+}
+
+model TelcoPrefix {
+  prefix String @id
+  telco  String
+}

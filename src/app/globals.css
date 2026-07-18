@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
+/*
+ * TrackScam PH design tokens — civic-advisory system.
+ * Light-first, trust-signaling. Semantic red/amber/green appear ONLY in
+ * verdict/scam-score UI so they keep their meaning.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f5f6f5; /* cool off-white page ground */
+  --card: #ffffff;
+  --ink: #182430; /* deep blue-slate text */
+  --ink-soft: #51606d;
+  --ink-faint: #8b98a3;
+  --line: #dde2e5;
+  --line-strong: #b9c2c9;
+  --harbor: #16556e; /* primary accent (interactive): deep teal-blue */
+  --harbor-deep: #0e3b4d;
+  --harbor-wash: #e8f0f3;
+  --royal: #0038a8; /* secondary accent (identity/topics): PH flag blue */
+  --royal-deep: #002766;
+  --royal-wash: #e7ecf7;
+  --flag-red: #ce1126; /* logo/favicon only — never in data UI */
+  --flag-gold: #fcd116;
+
+  /* semantic — verdict-only */
+  --scam: #bb3325;
+  --scam-wash: #faece9;
+  --caution: #a06c00;
+  --caution-wash: #faf1dc;
+  --safe: #1e7047;
+  --safe-wash: #e7f2ec;
+  --neutral-verdict: #51606d;
+  --neutral-wash: #eef0f2;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-harbor: var(--harbor);
+  --color-harbor-deep: var(--harbor-deep);
+  --color-harbor-wash: var(--harbor-wash);
+  --color-royal: var(--royal);
+  --color-royal-deep: var(--royal-deep);
+  --color-royal-wash: var(--royal-wash);
+  --color-scam: var(--scam);
+  --color-scam-wash: var(--scam-wash);
+  --color-caution: var(--caution);
+  --color-caution-wash: var(--caution-wash);
+  --color-safe: var(--safe);
+  --color-safe-wash: var(--safe-wash);
+  --color-neutral-verdict: var(--neutral-verdict);
+  --color-neutral-wash: var(--neutral-wash);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-public-sans), system-ui, sans-serif;
+  --font-display: var(--font-franklin), var(--font-public-sans), sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum";
+}
+
+/* Phone numbers always render in tabular mono */
+.tel {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+::selection {
+  background: var(--harbor);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--harbor);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

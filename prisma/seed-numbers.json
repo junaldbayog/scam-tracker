@@ -1,0 +1,4 @@
+{
+  "_readme": "Launch seed data. Populate `numbers` with scam numbers taken from PUBLIC sources only (NTC advisories, bank security alerts, telco bulletins, news reports). Every entry must have a `source` naming where it was published. Never add numbers from private tips — those must come through the normal /report flow. Run: npx tsx prisma/seed-content.ts",
+  "numbers": []
+}
