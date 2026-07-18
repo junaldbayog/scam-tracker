@@ -32,8 +32,38 @@ const CATEGORIES: { slug: string; name: string; nameFil: string; blurb: string }
   {
     slug: "gcash-scam",
     name: "GCash / e-wallet scam",
-    nameFil: "GCash scam",
-    blurb: "Fake GCash support, phishing links, bogus send-money requests, and account takeover attempts.",
+    nameFil: "GCash / Maya scam",
+    blurb: "Fake GCash, Maya (PayMaya), and other e-wallet support, phishing links, bogus send-money requests, and account takeover attempts.",
+  },
+  {
+    slug: "sextortion",
+    name: "Sextortion / blackmail",
+    nameFil: "Sextortion",
+    blurb: "Threats to leak intimate photos or videos — often after a fake video call — unless the victim pays.",
+  },
+  {
+    slug: "online-shopping-scam",
+    name: "Online shopping scam",
+    nameFil: "Pekeng online seller",
+    blurb: "Fake online sellers on Marketplace, Shopee, Lazada, and similar sites who take payment or a deposit and never deliver.",
+  },
+  {
+    slug: "investment-scam",
+    name: "Investment / crypto scam",
+    nameFil: "Pekeng investment",
+    blurb: "Bogus investment, crypto, forex, and 'double your money' schemes promising guaranteed or unrealistic returns.",
+  },
+  {
+    slug: "gambling-scam",
+    name: "Online gambling scam",
+    nameFil: "Online sugal scam",
+    blurb: "Online casino, e-sabong, and betting sites that lure deposits and block withdrawals of supposed winnings.",
+  },
+  {
+    slug: "romance-scam",
+    name: "Romance scam",
+    nameFil: "Romance scam",
+    blurb: "Fake online partners who build trust over weeks, then ask for money, gifts, or help with a 'package' or investment.",
   },
   {
     slug: "fake-delivery",
