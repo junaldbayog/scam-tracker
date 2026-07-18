@@ -12,8 +12,10 @@ import {
 import { e164ToSlug } from "@/lib/telco";
 import { LIMITS, rateLimit } from "@/lib/rate-limit";
 import { getIpHash } from "@/lib/identity";
-import { extractCandidateNumbers, parseNumber } from "@/lib/phone";
+import { extractCandidateNumbers, extractCandidateNumbersWithContext, parseNumber } from "@/lib/phone";
 import { scoreNumber } from "@/lib/scoring";
+import { stripHtml, suggestNote } from "@/lib/curate";
+import { fetchScammersPhPosts } from "@/lib/reddit";
 
 async function requireAdmin() {
   if (!(await isAdmin())) redirect("/admin/login");
@@ -32,6 +34,13 @@ export type Candidate = {
   // Honest decision-support signal for the human reviewer.
   signal: "corroborated" | "conflicting" | "new" | "unknown-prefix";
   note: string;
+  // Pre-filled, editable suggestion (site's own neutral words, not copied text).
+  suggestedNote?: string;
+  suggestedCategoryId?: string | null;
+  // Raw source context around the number (testing prefill). Not stored unless published.
+  context?: string;
+  // Present only for the transient Reddit review result. Never saved to the DB.
+  sourceUrls?: string[];
 };
 
 /**
@@ -39,9 +48,7 @@ export type Candidate = {
  * to each — NOT a verdict, just what the site already knows. The pasted text
  * itself is never stored or published.
  */
-export async function detectNumbers(text: string): Promise<Candidate[]> {
-  await requireAdmin();
-  const parsed = extractCandidateNumbers(text ?? "");
+async function candidateDetails(parsed: ReturnType<typeof extractCandidateNumbers>): Promise<Candidate[]> {
   const out: Candidate[] = [];
 
   for (const p of parsed) {
@@ -88,6 +95,69 @@ export async function detectNumbers(text: string): Promise<Candidate[]> {
     });
   }
   return out;
+}
+
+export async function detectNumbers(text: string): Promise<Candidate[]> {
+  await requireAdmin();
+  const withCtx = extractCandidateNumbersWithContext(stripHtml(text ?? ""));
+  const candidates = await candidateDetails(withCtx.map((w) => w.parsed));
+
+  const categories = await prisma.category.findMany({ select: { id: true, slug: true } });
+  const slugToId = new Map(categories.map((c) => [c.slug, c.id]));
+  const ctxByE164 = new Map(withCtx.map((w) => [w.parsed.e164, w.context]));
+
+  return candidates.map((c) => {
+    const rawContext = ctxByE164.get(c.e164) ?? "";
+    // Strip the leading number token so the prefill is just the description.
+    const context = rawContext.replace(/^\+?\d[\d\s().-]{6,}\d\s*/, "").trim();
+    const s = suggestNote(rawContext);
+    return {
+      ...c,
+      suggestedNote: s.note,
+      suggestedCategoryId: s.categorySlug ? slugToId.get(s.categorySlug) ?? null : null,
+      context,
+    };
+  });
+}
+
+/**
+ * Pulls only recent text posts through Reddit's official Data API, detects
+ * numbers, and returns them for an admin to review. Post text is not stored,
+ * displayed, or published by this app.
+ */
+export async function importRedditCandidates(): Promise<{
+  candidates: Candidate[];
+  postCount: number;
+  error?: string;
+}> {
+  await requireAdmin();
+  try {
+    const posts = await fetchScammersPhPosts();
+    const sources = new Map<string, Set<string>>();
+    const byNumber = new Map<string, ReturnType<typeof extractCandidateNumbers>[number]>();
+    for (const post of posts) {
+      for (const parsed of extractCandidateNumbers(post.text)) {
+        byNumber.set(parsed.e164, parsed);
+        const urls = sources.get(parsed.e164) ?? new Set<string>();
+        urls.add(post.url);
+        sources.set(parsed.e164, urls);
+      }
+    }
+    const candidates = await candidateDetails([...byNumber.values()]);
+    return {
+      postCount: posts.length,
+      candidates: candidates.map((candidate) => ({
+        ...candidate,
+        sourceUrls: [...(sources.get(candidate.e164) ?? [])].slice(0, 5),
+      })),
+    };
+  } catch (error) {
+    return {
+      candidates: [],
+      postCount: 0,
+      error: error instanceof Error ? error.message : "Reddit import failed.",
+    };
+  }
 }
 
 /** Publish one admin-curated number as an unverified community report. */

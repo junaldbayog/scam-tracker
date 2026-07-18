@@ -144,7 +144,7 @@ Revised approach — a distribution flywheel instead of a seeded corpus:
    (Whoscall/Truecaller), mobile security, on guides and number pages. PH
    display RPMs are too low to matter at achievable traffic.
 
-Number-seeding is done via **human-in-the-loop curation**, not scraping. The
+Number-seeding is done via **human-in-the-loop curation**, not automated publishing. The
 admin "Add numbers" tool (`/admin/curate`) lets a reviewer paste text they've
 sourced; the app extracts only the phone numbers (never storing/publishing the
 pasted content), shows an honest per-number signal (already-corroborated on the
@@ -159,6 +159,19 @@ unverified accusations risks defaming innocents (recycled SIMs, spoofed IDs) —
 which also undermines the anti-scam mission. The curation tool keeps a human
 judging each number and keeps the site the publisher of its own neutral words,
 not of scraped content.
+
+### Optional Reddit reviewer import
+
+The admin curation page can optionally load recent **text** posts from
+`r/ScammersPH` through Reddit's official authenticated Data API. It detects
+phone numbers only for the logged-in reviewer; it does not save or render post
+text, does not process images, and cannot publish a number without the
+reviewer's separate confirmation and neutral summary. Set the three `REDDIT_*`
+variables in `.env` after registering an app and use a truthful user agent.
+Before enabling it in production, make sure your use complies with Reddit's
+current [Developer Terms](https://redditinc.com/policies/developer-terms) and
+[Data API Terms](https://redditinc.com/policies/data-api-terms), especially if
+the site is commercial or monetized.
 
 ## Launch checklist (production)
 

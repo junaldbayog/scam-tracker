@@ -1,10 +1,18 @@
 // Core + explicit metadata: the bundled entrypoints load their metadata via a
 // JSON import attribute that some toolchains (tsx/esbuild) silently drop.
-import { parsePhoneNumberFromString as parseCore } from "libphonenumber-js/core";
+import {
+  parsePhoneNumberFromString as parseCore,
+  findPhoneNumbersInText as findCore,
+} from "libphonenumber-js/core";
 import metadata from "libphonenumber-js/min/metadata";
 
 const parsePhoneNumberFromString = (text: string, country: "PH") =>
   parseCore(text, { defaultCountry: country }, metadata);
+
+// Robust scan for phone numbers in free/messy text — handles page source,
+// adjacent timestamps/ids, and varied formatting without gluing tokens.
+const findNumbersInText = (text: string) =>
+  findCore(text, { defaultCountry: "PH" }, metadata);
 
 export type ParsedNumber = {
   e164: string; // +639171234567
@@ -66,17 +74,46 @@ export function displayFormat(nationalFormat: string): string {
  * read, and we extract only the numbers — never the surrounding content.
  */
 export function extractCandidateNumbers(text: string, limit = 60): ParsedNumber[] {
-  // Grab number-ish runs: optional +, then 7+ digits possibly split by
-  // spaces, dashes, dots, or parens.
-  const candidates = text.match(/\+?\d[\d\s().-]{6,}\d/g) ?? [];
   const seen = new Set<string>();
   const out: ParsedNumber[] = [];
-  for (const raw of candidates) {
-    const parsed = parseNumber(raw);
+  for (const found of findNumbersInText(text)) {
+    const parsed = parseNumber(found.number.number);
     if (!parsed || seen.has(parsed.e164)) continue;
     seen.add(parsed.e164);
     out.push(parsed);
     if (out.length >= limit) break;
   }
   return out;
+}
+
+/**
+ * Like extractCandidateNumbers, but also returns a slice of the text around each
+ * number so the caller can classify what kind of scam it was mentioned with.
+ * The context is used only to suggest a note — it is never published verbatim.
+ */
+export function extractCandidateNumbersWithContext(
+  text: string,
+  windowChars = 140,
+  limit = 60
+): { parsed: ParsedNumber; context: string }[] {
+  const seen = new Set<string>();
+  const hits: { parsed: ParsedNumber; start: number; end: number }[] = [];
+  for (const found of findNumbersInText(text)) {
+    const parsed = parseNumber(found.number.number);
+    if (!parsed || seen.has(parsed.e164)) continue;
+    seen.add(parsed.e164);
+    hits.push({ parsed, start: found.startsAt, end: found.endsAt });
+    if (hits.length >= limit) break;
+  }
+
+  // Classify each number only from the text that FOLLOWS it, up to the next
+  // number. Scam reports read "NUMBER did X", so the description trails the
+  // number; this stops one number's keywords from bleeding into a neighbor.
+  // A missed keyword just yields the neutral generic note (a safe fallback),
+  // never a confident wrong label.
+  return hits.map((h, i) => {
+    const nextStart = i < hits.length - 1 ? hits[i + 1].start : text.length;
+    const right = Math.min(text.length, nextStart, h.end + windowChars);
+    return { parsed: h.parsed, context: text.slice(h.start, right) };
+  });
 }
