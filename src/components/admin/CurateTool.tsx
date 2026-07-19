@@ -14,6 +14,7 @@ const SIGNAL_STYLE: Record<Candidate["signal"], { label: string; cls: string }> 
 
 export function CurateTool({ categories }: { categories: Category[] }) {
   const [text, setText] = useState("");
+  const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [added, setAdded] = useState<Record<string, boolean>>({});
@@ -45,6 +46,7 @@ export function CurateTool({ categories }: { categories: Category[] }) {
   async function add(c: Candidate, formEl: HTMLFormElement) {
     const fd = new FormData(formEl);
     fd.set("number", c.slug);
+    fd.set("source", source.trim());
     await curateNumber(fd);
     setAdded((prev) => ({ ...prev, [c.e164]: true }));
   }
@@ -52,10 +54,26 @@ export function CurateTool({ categories }: { categories: Category[] }) {
   return (
     <div>
       <p className="mb-3 rounded-md border border-line bg-harbor-wash px-4 py-2.5 text-sm text-ink-soft">
-        Paste text you&rsquo;ve read from a source. We extract only the numbers —
+        Paste text from a public scam advisory (NTC, BSP, PNP-ACG, DTI, a bank
+        bulletin) or any source you&rsquo;ve read. We extract only the numbers —
         never the pasted content — and show what the site already knows so you can
         judge each one. Add only numbers you personally find credible.
       </p>
+
+      <label className="mb-3 block">
+        <span className="text-sm font-semibold text-ink">Source label</span>
+        <span className="ml-1 text-xs text-ink-faint">
+          (optional — e.g. &ldquo;NTC Advisory 2026-03-15&rdquo;. Attributes each
+          number and lets its page be indexed right away.)
+        </span>
+        <input
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          maxLength={80}
+          placeholder="Where does this list come from?"
+          className="mt-1 w-full rounded-md border border-line-strong bg-card px-3 py-2 text-sm focus:border-harbor focus:outline-none"
+        />
+      </label>
 
       <textarea
         value={text}

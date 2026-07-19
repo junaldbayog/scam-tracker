@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { submitDispute } from "@/app/admin/actions";
+import { TurnstileField } from "@/components/TurnstileField";
 
 export const metadata: Metadata = {
   title: "Is This Your Number? Dispute & Removal Process",
@@ -47,7 +48,9 @@ export default async function DisputesPage({
                 ? "Too many requests from your connection. Try again later."
                 : sent === "badnumber"
                   ? "That doesn't look like a valid phone number."
-                  : "Please fill in every field — the explanation needs at least a few sentences."}
+                  : sent === "captcha"
+                    ? "Verification failed. Refresh the page and try again."
+                    : "Please fill in every field — the explanation needs at least a few sentences."}
             </p>
           ) : null}
           <div>
@@ -111,6 +114,7 @@ export default async function DisputesPage({
             <label htmlFor="dp-web">Website</label>
             <input id="dp-web" name="website" tabIndex={-1} autoComplete="off" />
           </div>
+          <TurnstileField />
           <button className="rounded-md bg-harbor px-6 py-2.5 font-semibold text-white hover:bg-harbor-deep">
             Submit for review
           </button>

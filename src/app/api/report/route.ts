@@ -5,6 +5,7 @@ import { parseNumber } from "@/lib/phone";
 import { ensureFingerprint, getIpHash } from "@/lib/identity";
 import { LIMITS, rateLimit } from "@/lib/rate-limit";
 import { checkComment, checkDisplayName } from "@/lib/moderation";
+import { verifyTurnstile } from "@/lib/turnstile";
 import { revalidatePath } from "next/cache";
 
 const Body = z.object({
@@ -14,6 +15,7 @@ const Body = z.object({
   categoryId: z.string().nullable().optional(),
   markScam: z.boolean().optional().default(true),
   website: z.string().optional().default(""), // honeypot
+  turnstileToken: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -42,6 +44,13 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "Too many reports from your connection. Try again later." },
       { status: 429 }
+    );
+  }
+
+  if (!(await verifyTurnstile(input.turnstileToken))) {
+    return NextResponse.json(
+      { error: "Verification failed. Refresh the page and try again." },
+      { status: 400 }
     );
   }
 

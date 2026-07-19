@@ -1,7 +1,8 @@
 "use client";
 
+import Script from "next/script";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 type Category = { id: string; slug: string; name: string };
 
@@ -9,6 +10,9 @@ export function ReportForm({ categories }: { categories: Category[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const turnstileToken = useRef<string>("");
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,6 +31,7 @@ export function ReportForm({ categories }: { categories: Category[] }) {
           categoryId: fd.get("categoryId") || null,
           markScam: fd.get("markScam") === "on",
           website: fd.get("website") || "", // honeypot
+          turnstileToken: turnstileToken.current,
         }),
       });
       const data = await res.json();
@@ -114,6 +119,23 @@ export function ReportForm({ categories }: { categories: Category[] }) {
         <label htmlFor="rf-web">Website</label>
         <input id="rf-web" name="website" tabIndex={-1} autoComplete="off" />
       </div>
+
+      {siteKey ? (
+        <>
+          <Script
+            src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+            onLoad={() => {
+              if (turnstileRef.current && window.turnstile) {
+                window.turnstile.render(turnstileRef.current, {
+                  sitekey: siteKey,
+                  callback: (t) => (turnstileToken.current = t),
+                });
+              }
+            }}
+          />
+          <div ref={turnstileRef} />
+        </>
+      ) : null}
 
       <div className="flex items-center gap-3">
         <button

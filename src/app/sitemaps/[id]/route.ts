@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { TELCO_SLUGS, e164ToSlug } from "@/lib/telco";
 import { GUIDES } from "@/lib/guides";
+import { indexableWhere } from "@/lib/visibility";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 export const NUMBERS_PER_SITEMAP = 10_000;
@@ -52,7 +53,7 @@ export async function GET(
     ];
   } else {
     const numbers = await prisma.phoneNumber.findMany({
-      where: { reportCount: { gt: 0 }, status: "ACTIVE" },
+      where: indexableWhere,
       orderBy: { firstReportedAt: "asc" },
       skip: (id - 1) * NUMBERS_PER_SITEMAP,
       take: NUMBERS_PER_SITEMAP,

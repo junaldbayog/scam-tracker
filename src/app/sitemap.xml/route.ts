@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { indexableWhere } from "@/lib/visibility";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 const NUMBERS_PER_SITEMAP = 10_000;
@@ -8,9 +9,7 @@ export const revalidate = 3600;
 
 /** Sitemap index pointing at the chunked sitemaps served at /sitemaps/[id].xml. */
 export async function GET() {
-  const count = await prisma.phoneNumber.count({
-    where: { reportCount: { gt: 0 }, status: "ACTIVE" },
-  });
+  const count = await prisma.phoneNumber.count({ where: indexableWhere });
   const chunks = Math.max(1, Math.ceil(count / NUMBERS_PER_SITEMAP));
   const ids = [0, ...Array.from({ length: chunks }, (_, i) => i + 1)];
 

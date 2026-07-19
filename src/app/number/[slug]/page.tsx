@@ -4,10 +4,12 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parseNumber, slugToQuery } from "@/lib/phone";
 import { scoreNumber } from "@/lib/scoring";
+import { isIndexable } from "@/lib/visibility";
 import { VerdictPlate } from "@/components/VerdictPlate";
 import { VoteButtons } from "@/components/VoteButtons";
 import { CommentForm } from "@/components/CommentForm";
 import { ShareButtons } from "@/components/ShareButtons";
+import { GotThisToo } from "@/components/GotThisToo";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -40,7 +42,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!data) return { title: "Number not found" };
   const { parsed, record } = data;
   const reportCount = record?.reportCount ?? 0;
-  const indexable = reportCount > 0 && record?.status === "ACTIVE";
+  // Indexable once it has any report or an official source; empty/non-active
+  // numbers stay noindex (see visibility.ts).
+  const indexable = record ? isIndexable(record) : false;
   return {
     title: `${parsed.slug} — Scam or Legit? ${reportCount > 0 ? `${reportCount} Report${reportCount === 1 ? "" : "s"}` : "Check Reports"}`,
     description: `Is ${parsed.nationalFormat} a scam? See community reports, scam votes, and comments for this ${record?.telco ?? "Philippine"} number. Vote and report for free — no sign-up.`,
@@ -165,7 +169,9 @@ export default async function NumberPage({ params }: Props) {
             <VoteButtons slug={parsed.slug} />
           </div>
 
-          <ShareButtons message={shareMessage} />
+          <GotThisToo slug={parsed.slug} />
+
+          <ShareButtons message={shareMessage} slug={parsed.slug} />
 
           <section aria-labelledby="reports-h">
             <div className="flex items-baseline justify-between">

@@ -16,6 +16,8 @@ import { extractCandidateNumbers, extractCandidateNumbersWithContext, parseNumbe
 import { scoreNumber } from "@/lib/scoring";
 import { stripHtml, suggestNote } from "@/lib/curate";
 import { fetchScammersPhPosts } from "@/lib/reddit";
+import { verifyTurnstile } from "@/lib/turnstile";
+import { notifyNewDispute } from "@/lib/notify";
 
 async function requireAdmin() {
   if (!(await isAdmin())) redirect("/admin/login");
@@ -171,22 +173,35 @@ export async function curateNumber(formData: FormData): Promise<void> {
     : null;
   const markScam = formData.get("markScam") === "on";
 
+  // Provenance for public-advisory ingestion: a short, human-entered label like
+  // "NTC Advisory 2026-03-15" or "BSP Consumer Advisory". Stored as seedSource,
+  // which both attributes the number and (via visibility.ts) makes the page
+  // indexable immediately — an official source is corroboration on its own.
+  const source = String(formData.get("source") ?? "").replace(/[<>]/g, "").trim().slice(0, 80);
+  const seedSource = source || "admin-curated";
+  const displayName = source ? "TrackScam PH (from public advisory)" : "TrackScam PH (reviewer)";
+
   // The published text is the admin's own neutral words, or a generic line —
   // never the pasted source content.
   const summary = String(formData.get("summary") ?? "").trim().slice(0, 2000);
-  const body = summary || "Flagged by a reviewer as a possible scam number, based on community discussion. Unverified — vote and add details below.";
+  const fallback = source
+    ? `Flagged in a public scam advisory (${source}). Vote and add details below.`
+    : "Flagged by a reviewer as a possible scam number, based on community discussion. Unverified — vote and add details below.";
+  const body = summary || fallback;
 
   const telco = (await prisma.telcoPrefix.findUnique({ where: { prefix: parsed.prefix } }))?.telco;
 
   const number = await prisma.phoneNumber.upsert({
     where: { e164: parsed.e164 },
-    update: {},
+    // Corroborating an existing number with a named advisory upgrades its
+    // provenance; a plain admin add leaves any richer source already set.
+    update: source ? { seedSource } : {},
     create: {
       e164: parsed.e164,
       nationalFormat: parsed.nationalFormat,
       prefix: parsed.prefix,
       telco,
-      seedSource: "admin-curated",
+      seedSource,
     },
   });
   if (number.status === "DELISTED") return;
@@ -196,7 +211,7 @@ export async function curateNumber(formData: FormData): Promise<void> {
       data: {
         phoneNumberId: number.id,
         body,
-        displayName: "TrackScam PH (reviewer)",
+        displayName,
         categoryId,
         ipHash: "curated",
         fingerprint: "curated",
@@ -332,6 +347,10 @@ export async function submitDispute(formData: FormData) {
     redirect("/legal/disputes?sent=invalid");
   }
 
+  if (!(await verifyTurnstile(String(formData.get("turnstileToken") ?? "") || undefined))) {
+    redirect("/legal/disputes?sent=captcha");
+  }
+
   const { parseNumber } = await import("@/lib/phone");
   const parsed = parseNumber(number);
   if (!parsed) redirect("/legal/disputes?sent=badnumber");
@@ -346,6 +365,8 @@ export async function submitDispute(formData: FormData) {
         explanation,
       },
     });
+    // Alert a human — this is the takedown safety net; it can't sit unseen.
+    await notifyNewDispute({ number: parsed.nationalFormat, claimantName, email, explanation });
   }
   // Same response whether or not the number exists — no data leaks.
   redirect("/legal/disputes?sent=1");
